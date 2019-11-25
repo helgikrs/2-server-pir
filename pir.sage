@@ -1,0 +1,126 @@
+# -*- encoding=utf8
+from collections import namedtuple
+import sys
+
+load("mvf.sage")
+
+MVF = namedtuple('MVF', ['v', 'u'])
+
+def gammify(v):
+    return str(v).replace('gamma', '𝛾')
+
+def R(m, r):
+    Zm = Integers(m)
+    R.<gamma> = PolynomialRing(Zm)
+    R66.<gamma> = R.quotient(gamma ^ r - 1)
+    return R66, gamma
+
+def random_vector(group, k):
+    return vector([group.random_element() for _ in range(k)])
+
+def vecexp(gamma, vec):
+    return vector([gamma ^ i for i in vec])
+
+def vecvecexp(xs, zs):
+    k = len(xs)
+    assert len(zs) == k
+    return prod([xs[i] ^ zs[i] for i in range(k)])
+
+def embed(PR, a, mvf):
+    n = len(a)
+    k = len(mvf.u[0])
+    xs = PR.gens()
+    assert len(xs) == k
+    assert len(mvf.u) == n
+
+    r = [a[i] * vecvecexp(xs, mvf.u[i]) for i in range(n)]
+    d = [a[i] * mvf.u[i] for i in range(n)]
+
+    return sum(r), lambda *xs: sum(d[i] * r[i](*xs) for i in range(len(r)))
+
+def check(db, i):
+    """
+    Embed db as polynomial, query point i and assert that the results are
+    correct.
+    """
+    print("db = {}\n".format(db))
+
+    n = ceil(log(len(db), 2))
+
+    print("Computing MVF(n={})".format(n))
+    u, v = make_mvf(n)
+    print("U = {}".format(u))
+    print("V = {}".format(v))
+
+    mvf = MVF(u=u, v=v)
+
+    n = len(u)
+    k = len(u[0])
+
+    Z = Integers(6)
+    R66, gamma = R(6, 6)
+    PR = PolynomialRing(R66, k, 'x')
+    # PR = PolynomialRing(Z, k, 'x')
+    # gamma = Z(-1)
+
+    print("Computing db polynomial F")
+    edb, deriv = embed(PR, db, mvf)
+    print("F{} = {}".format(PR.gens(), edb))
+
+    print("==============")
+
+    print("User querying point w = {}".format(i))
+
+    # protocol, for quering point i
+    z = random_vector(Z, k)
+    q1 = vecexp(gamma, z)
+    q2 = vecexp(gamma, z + mvf.v[i])
+    print("User generates random vector z={}".format(z))
+    print("User constructs two queries to send to servers S1 and S2")
+    print(" q1 = {}".format(str(q1).replace('gamma', '𝛾')))
+    print(" q2 = {}".format(str(q2).replace('gamma', '𝛾')))
+
+    # U sends q_i to server S_i
+
+    # S_i responds with r_i and d_i
+    r1, d1 = edb(*q1), deriv(*q1)
+    r2, d2 = edb(*q2), deriv(*q2)
+
+    print("< Server 1 received q1")
+    print("< Server 1 responds with [{}, {}]".format(gammify(r1), gammify(d1)))
+
+    print("< Server 2 received q2")
+    print("< Server 2 responds with [{}, {}]".format(gammify(r2), gammify(d2)))
+
+    # User recovers bit of a_i
+    gp1 = d1.dot_product(mvf.v[i])
+    gp2 = d2.dot_product(mvf.v[i])
+
+    M = Matrix([
+        [1, 1, 1, 1],
+        [0, 1, 3, 4],
+        [1, gamma, gamma^3, gamma^4],
+        [0, gamma, 3*gamma^3, 4*gamma^4]
+    ])
+
+    resv = (M.adjoint() * vector([r1, gp1, r2, gp2]))
+
+    print('User computes:')
+
+    print("adj(M) * {}\n\t= {}".format(gammify(vector([r1, gp1, r2, gp2])), gammify(resv)))
+
+    res = resv[0] != 0
+
+    print("User recovery of a_w = {}".format(int(res)))
+    print("db[w] = {}".format(db[i]))
+
+    assert res == (db[i] == 1)
+
+def main():
+    n = 4
+    db = random_vector(GF(2), n).change_ring(Integers())
+    w = randint(0, n-1)
+    check(db, w)
+
+if __name__ == '__main__':
+    main()
