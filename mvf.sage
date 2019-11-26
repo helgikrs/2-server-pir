@@ -4,7 +4,6 @@ import os
 def fp(xs, p, r):
     return 1 - prod(1 - Combinations(range(sum(xs)), p^i).cardinality()^(p-1) for i in range(r))
 
-
 def f(xs, ps):
     n = len(xs)
     t = len(ps)
@@ -43,18 +42,9 @@ def make_mvf(n):
     C = C.change_ring(Zm)
     F = F.change_ring(Zm)
 
-    print('MFV size:', C.dimensions()[0])
-    print('MFV degree:', C.dimensions()[1])
-
     U, V = list(C), list(F.T)
 
     with open(datname, 'w') as fd:
         fd.write(dumps((U, V)))
 
     return U, V
-
-
-if __name__ == '__main__':
-    make_mvf(10)
-
-

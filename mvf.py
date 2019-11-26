@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Faster, pure Python MVF generator."""
 
 import functools
 import math
@@ -9,8 +10,8 @@ from tqdm import tqdm
 def nCr(n, r):
     if r > n:
         return 0
-    # print(n, r)
     return math.factorial(n)//math.factorial(r)//math.factorial(n-r)
+
 
 def prod(l):
     r = 1
@@ -18,8 +19,9 @@ def prod(l):
         r *= p
     return r
 
+
 def crt(res):
-    # XXX: very dumb hardcoding for crt of 2, 3
+    # XXX: hardcoded CRT over Z6
     m2 = res[0] % 2
     m3 = res[1] % 3
     if (m2, m3) == (0, 0):
@@ -35,12 +37,13 @@ def crt(res):
     if (m2, m3) == (1, 2):
         return 5
 
+
 def fp(x_ham, p, r):
     return 1 - prod(1 - nCr(x_ham, p**i)**(p-1) for i in range(r))
 
+
 @functools.lru_cache(maxsize=None)
 def f(x_ham, x_len, ps):
-    # print(x_ham, x_len, ps)
     n = x_len
     t = len(ps)
     m = prod(ps)
@@ -57,11 +60,14 @@ def f(x_ham, x_len, ps):
 
     return crt(res)
 
+
+@functools.lru_cache(maxsize=None)
 def ham(x):
     return bin(x).count('1')
 
-def make_mvf_M(n):
 
+def make_mvf_M(n):
+    # writes directly to file instead of keeping in-memory
     with open('mvf-large.dat', 'w') as file:
         file.write('[')
         for y in tqdm(range(2**n)):
@@ -75,6 +81,3 @@ def make_mvf_M(n):
                 file.write(str(mxy))
             file.write(']')
         file.write(']')
-
-if __name__ == '__main__':
-    make_mvf_M(13)
